@@ -87,24 +87,26 @@ An alert was setup to notify engineers whenever there is a high rate of 5xx erro
 
 ## Architecture
 
-   HTTP users
-       │
-       ▼
-   [ Nginx ]  ──────────────────────────┐
-     │  ▲                               │
-     │  └── JSON access/error logs ─────┼─► [ Promtail ] ──push──► [ Loki ]
-     │                                  │
-     └── /nginx_status (stub_status) ─► [ nginx-prometheus-exporter ]
-                                          │
-                                          └─scraped by──► [ Prometheus ]
-                                                            │
-                                                            ▼
-                                           [ Grafana ] reads from both:
-                                            • Prometheus (metrics panels)
-                                            • Loki (logs panels + alerts)
+HTTP users
+   │
+   ▼
+[ Nginx ]  ──────────────────────────┐
+  │  ▲                               │
+  │  └── JSON access/error logs ─────┼─► [ Promtail ] ──push──► [ Loki ]
+  │                                  │
+  └── /nginx_status (stub_status) ─► [ nginx-prometheus-exporter ]
+                                       │
+                                       └─scraped by──► [ Prometheus ]
+                                                         │
+                                                         ▼
+                                          [ Grafana ] reads from both:
+                                           • Prometheus (metrics panels)
+                                           • Loki (logs panels + alerts)
 
 **Note**:
 
 - Metrics path is pull (Prometheus scrapes exporter).
 - Logs path is push (Promtail pushes to Loki).
 - Grafana sits on top and correlates both via labels/time.
+
+
