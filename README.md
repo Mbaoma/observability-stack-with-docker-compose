@@ -87,6 +87,7 @@ An alert was setup to notify engineers whenever there is a high rate of 5xx erro
 
 ## Architecture
 
+```
                      HTTP clients
                           |
                           v
@@ -124,6 +125,7 @@ An alert was setup to notify engineers whenever there is a high rate of 5xx erro
                   +----+----+
                   |  Loki   |
                   +---------+
+```
 
 **Note**:
 
