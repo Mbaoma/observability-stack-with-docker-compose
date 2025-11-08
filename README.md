@@ -48,3 +48,63 @@ An alert was setup to notify engineers whenever there is a high rate of 5xx erro
 ![Running Containers](./images/running-containers.png)
 ![Dashboard-1](./images/dashboard-1.png)
 ![Dashboard-2](./images/dashboard-2.png)
+![Alert Rule](./images/alert-condition.png)
+
+## Components
+
+### Nginx (web server)
+
+- Serves traffic on :8080.
+- Exposes a lightweight text endpoint /nginx_status (stub_status) for connections/request counters.
+- Emits JSON access logs (and error logs) to `/var/log/nginx/*`
+
+### nginx-prometheus-exporter (metrics adapter)
+
+- Scrapes `http://nginx:8080/nginx_status`.
+- Translates those counters into Prometheus metrics like `nginx_connections_active`, `nginx_http_requests_total`, etc.
+
+### Prometheus (metrics DB + scraper)
+
+- Periodically scrapes the exporter (not Nginx directly).
+- Stores time series and serves PromQL to Grafana.
+
+### Promtail (log shipper)
+
+- Tails Nginx log files via a shared Docker volume (nginx_logs).
+- Parses each line as JSON, extracts fields (status, uri, method, host, time, request_time) and attaches them as labels/values.
+- Pushes labeled log streams to Loki.
+
+### Loki (log database)
+
+- Stores logs as streams (labels + entries).
+- Supports LogQL for queries, filtering, rates, and aggregations (e.g., `sum(rate({job="nginx-logs",status=~"5.."}[5m]))`).
+
+### Grafana (visualization)
+
+- Connect to the pre-provisioned datasources: Prometheus (metrics) + Loki (logs).
+- Loads a ready dashboard that shows golden-signal metrics and log analytics on one page.
+- Hosts a Grafana alert rule that evaluates a Loki query to detect elevated 5xx rates.
+
+## Architecture
+
+   HTTP users
+       │
+       ▼
+   [ Nginx ]  ──────────────────────────┐
+     │  ▲                               │
+     │  └── JSON access/error logs ─────┼─► [ Promtail ] ──push──► [ Loki ]
+     │                                  │
+     └── /nginx_status (stub_status) ─► [ nginx-prometheus-exporter ]
+                                          │
+                                          └─scraped by──► [ Prometheus ]
+                                                            │
+                                                            ▼
+                                           [ Grafana ] reads from both:
+                                            • Prometheus (metrics panels)
+                                            • Loki (logs panels + alerts)
+
+**Note**:
+
+- Metrics path is pull (Prometheus scrapes exporter).
+- Logs path is push (Promtail pushes to Loki).
+- Grafana sits on top and correlates both via labels/time.
