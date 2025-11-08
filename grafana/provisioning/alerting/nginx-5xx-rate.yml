@@ -1,0 +1,39 @@
+apiVersion: 1
+groups:
+  - name: nginx-5xx-alerts
+    folder: "Nginx"
+    interval: 1m
+    rules:
+      - uid: "high-5xx-rate"
+        title: "High 5xx error rate"
+        condition: "C"
+        for: 5m
+        data:
+          - refId: "A"
+            datasourceUid: "loki-ds"
+            relativeTimeRange: { from: 300, to: 0 }
+            model:
+              editorMode: "code"
+              expr: 'sum(rate({job="nginx-logs",status=~"5.."}[5m]))'
+              queryType: "range"
+              refId: "A"
+          - refId: "B"
+            datasourceUid: "__expr__"
+            model:
+              type: "reduce"
+              expression: "A"
+              reducer: "last"
+          - refId: "C"
+            datasourceUid: "__expr__"
+            model:
+              type: "threshold"
+              expression: "B"
+              conditions:
+                - evaluator: { type: "gt", params: [1] }
+                  operator: { type: "and" }
+                  reducer: { type: "last" }
+                  type: "query"
+        annotations:
+          summary: "5xx error rate > 1 req/s for 5m"
+        labels: { severity: "warning" }
+        isPaused: false

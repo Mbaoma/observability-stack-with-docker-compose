@@ -1,0 +1,86 @@
+# server:
+#   http_listen_port: 9080
+#   grpc_listen_port: 0
+# clients:
+#   - url: http://loki:3100/loki/api/v1/push
+# positions:
+#   filename: /tmp/positions.yaml
+# scrape_configs:
+#   - job_name: nginx-logs
+#     static_configs:
+#       - targets: [localhost]
+#         labels:
+#           job: nginx-logs
+#           __path__: /var/log/nginx/*.log
+#       - targets: [localhost]
+#         labels:
+#           job: nginx-logs
+#           __path__: /var/log/nginx/*.json
+#     pipeline_stages:
+#       - match:
+#           selector: '{job="nginx-logs"}'
+#           stages:
+#             - json:
+#                 expressions:
+#                   time: time
+#                   status: status
+#                   method: request_method
+#                   uri: uri
+#                   host: host
+#                   request_time: request_time
+#             - timestamp:
+#                 source: time
+#                 format: RFC3339
+#             - labels:
+#                 status:
+#                 method:
+#                 uri:
+#                 host:
+#             - convert:
+#                 fields:
+#                   - key: status
+#                     type: int
+#                   - key: request_time
+#                     type: float
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+positions:
+  filename: /tmp/positions.yaml
+
+scrape_configs:
+  - job_name: nginx-logs
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: nginx-logs
+          __path__: /var/log/nginx/*.log
+      - targets: [localhost]
+        labels:
+          job: nginx-logs
+          __path__: /var/log/nginx/*.json
+    pipeline_stages:
+      - match:
+          selector: '{job="nginx-logs"}'
+          stages:
+            - json:
+                expressions:
+                  time: time
+                  status: status
+                  method: request_method
+                  uri: uri
+                  host: host
+                  request_time: request_time
+            - timestamp:
+                source: time
+                format: RFC3339
+            - labels:
+                status:
+                method:
+                uri:
+                host:

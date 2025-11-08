@@ -1,0 +1,74 @@
+services:
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: nginx
+    ports: ["8080:8080"]
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+      - nginx_logs:/var/log/nginx
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:edge
+    container_name: nginx-exporter
+    command: ["-nginx.scrape-uri=http://nginx:8080/nginx_status"]
+    ports: ["9113:9113"]
+    depends_on: [nginx]
+
+  loki:
+    image: grafana/loki:2.9.5
+    container_name: loki
+    command: ["-config.file=/etc/loki/config.yml"]
+    ports: ["3100:3100"]
+    volumes:
+      - ./loki/config.yml:/etc/loki/config.yml:ro
+      - loki_data:/loki
+
+  promtail:
+    image: grafana/promtail:3.5
+    container_name: promtail
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes:
+      - ./promtail/config.yml:/etc/promtail/config.yml:ro
+      - nginx_logs:/var/log/nginx:ro
+    depends_on: [loki, nginx]
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    ports: ["9090:9090"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on: [nginx-exporter]
+
+  grafana:
+    image: grafana/grafana:10.4.3
+    container_name: grafana
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "admin"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/provisioning/alerting:/etc/grafana/provisioning/alerting:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on: [prometheus, loki]
+
+volumes:
+  grafana_data: {}
+  prometheus_data: {}
+  loki_data: {}
+  nginx_logs: {}
